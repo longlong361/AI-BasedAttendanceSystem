@@ -1,13 +1,21 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { BookOpen, CalendarDays, Check, ChevronDown, Code2, Copy, LayoutDashboard, LogOut, MoreHorizontal, Search, Users, Wifi, X } from 'lucide-react'
+import { useMemo, useState, useEffect } from 'react'
+import { BookOpen, CalendarDays, Check, ChevronDown, Code2, Copy, LayoutDashboard, LogOut, MoreHorizontal, Search, Users, Wifi, X, Trash2, RotateCcw } from 'lucide-react'
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
+import axios from 'axios'
 
-const students = [
-  ['01', 'Nguyễn Minh Anh', '10A1', 'THPT Chuyên Lê Hồng Phong', 'present', 'MA'], ['02', 'Trần Hoàng Nam', '10A1', 'THPT Chuyên Lê Hồng Phong', 'present', 'TN'], ['03', 'Lê Thảo Vy', '10A2', 'THPT Chuyên Lê Hồng Phong', 'present', 'TV'], ['04', 'Phạm Đức Long', '10A1', 'THPT Chuyên Lê Hồng Phong', 'absent', 'PL'], ['05', 'Võ Ngọc Hà', '10A2', 'THPT Chuyên Lê Hồng Phong', 'present', 'NH'], ['06', 'Đỗ Quang Huy', '10A3', 'THPT Chuyên Lê Hồng Phong', 'present', 'QH'], ['07', 'Bùi Khánh Linh', '10A2', 'THPT Chuyên Lê Hồng Phong', 'absent', 'KL'],
-] as const
+const API_STUDENT_LIST = '/api/students'
+
+type Student = {
+  id: string
+  name: string
+  className: string
+  school: string
+  status: 'present' | 'absent'
+  initials: string
+}
 
 const trendData = [
   { day: 'Mon', present: 38, absent: 7 }, { day: 'Tue', present: 41, absent: 4 }, { day: 'Wed', present: 39, absent: 6 }, { day: 'Thu', present: 43, absent: 2 }, { day: 'Fri', present: 40, absent: 5 }, { day: 'Sat', present: 42, absent: 3 }, { day: 'Sun', present: 40, absent: 5 },
@@ -28,10 +36,22 @@ function AttendanceChart() {
   return <section className="mb-5 rounded-xl border border-border/70 bg-card/60 p-5 backdrop-blur-md"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-medium text-primary">Weekly performance</p><h2 className="mt-1 text-lg font-semibold tracking-tight">Attendance trends over the last 7 days</h2><p className="mt-1 text-xs text-muted-foreground">Daily attendance activity across all classes</p></div><div className="flex items-center gap-4 pt-1 text-xs text-muted-foreground"><span className="flex items-center gap-2"><span className="size-2 rounded-full bg-chart-1" />Present</span><span className="flex items-center gap-2"><span className="size-2 rounded-full bg-chart-2" />Absent</span></div></div><ChartContainer config={chartConfig} className="mt-6 h-[260px] w-full"><AreaChart accessibilityLayer data={trendData} margin={{ left: -18, right: 8, top: 8 }}><defs><linearGradient id="presentFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--color-present)" stopOpacity={0.3} /><stop offset="100%" stopColor="var(--color-present)" stopOpacity={0.02} /></linearGradient></defs><CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" /><XAxis dataKey="day" tickLine={false} axisLine={false} tickMargin={10} /><YAxis tickLine={false} axisLine={false} tickMargin={10} domain={[0, 45]} /><ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} /><Area type="monotone" dataKey="present" stroke="var(--color-present)" strokeWidth={2} fill="url(#presentFill)" dot={{ r: 3, fill: 'var(--color-present)', strokeWidth: 0 }} activeDot={{ r: 5 }} /><Area type="monotone" dataKey="absent" stroke="var(--color-absent)" strokeWidth={1.5} fill="transparent" strokeDasharray="4 4" /></AreaChart></ChartContainer></section>
 }
 
-function AttendanceTable() {
+function AttendanceTable({ studentList, onReset, onDelete }: { studentList: Student[], onReset: () => void, onDelete: (id: string) => void }) {
   const [query, setQuery] = useState('')
-  const filtered = useMemo(() => students.filter((student) => `${student[1]} ${student[2]}`.toLowerCase().includes(query.toLowerCase())), [query])
-  return <section className="overflow-hidden rounded-xl border border-border/70 bg-card/60 backdrop-blur-md"><div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/70 px-4 py-3"><div><h2 className="text-sm font-semibold">Attendance overview</h2><p className="mt-1 text-xs text-muted-foreground">Today&apos;s attendance · 08:30 AM</p></div><div className="relative"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><input className="focus-ring w-52 rounded-md border border-input bg-background/70 py-2 pl-8 pr-3 text-xs outline-none placeholder:text-muted-foreground" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search students" aria-label="Search students" /></div></div><div className="overflow-x-auto"><table className="w-full min-w-[680px] text-left"><thead><tr className="border-b border-border text-[10px] uppercase tracking-wider text-muted-foreground"><th className="px-4 py-3 font-medium">No.</th><th className="px-2 py-3 font-medium">Student</th><th className="px-2 py-3 font-medium">Class</th><th className="px-2 py-3 font-medium">School</th><th className="px-4 py-3 text-right font-medium">Status</th></tr></thead><tbody>{filtered.map(([id, name, className, school, status, initials]) => <tr key={id} className="table-row-hover border-b border-border/70 last:border-0"><td className="px-4 py-3 font-mono text-xs text-muted-foreground">{id}</td><td className="px-2 py-3"><div className="flex items-center gap-3"><div className="flex size-7 items-center justify-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground">{initials}</div><span className="text-sm">{name}</span></div></td><td className="px-2 py-3 font-mono text-xs text-muted-foreground">{className}</td><td className="px-2 py-3 text-xs text-muted-foreground">{school}</td><td className="px-4 py-3 text-right"><span className={`inline-flex rounded-full px-2 py-1 text-[11px] font-medium ${status === 'present' ? 'status-present' : 'status-absent'}`}>{status === 'present' ? 'Present' : 'Absent'}</span></td></tr>)}</tbody></table></div></section>
+  const [isResetting, setIsResetting] = useState(false)
+
+  const filteredStudents = useMemo(
+    () => studentList.filter((student) => `${student.name} ${student.className}`.toLowerCase().includes(query.toLowerCase())),
+    [studentList, query]
+  )
+
+  const handleReset = async () => {
+    setIsResetting(true)
+    await onReset()
+    setIsResetting(false)
+  }
+
+  return <section className="overflow-hidden rounded-xl border border-border/70 bg-card/60 backdrop-blur-md"><div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/70 px-4 py-3"><div><h2 className="text-sm font-semibold">Attendance overview</h2><p className="mt-1 text-xs text-muted-foreground">Today&apos;s attendance</p></div><div className="flex items-center gap-3"><div className="relative"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><input className="focus-ring w-52 rounded-md border border-input bg-background/70 py-2 pl-8 pr-3 text-xs outline-none placeholder:text-muted-foreground" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search students" aria-label="Search students" /></div><button onClick={handleReset} disabled={isResetting} className="focus-ring flex items-center gap-2 rounded-md bg-secondary px-3 py-2 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50"><RotateCcw size={13} className={isResetting ? "animate-spin" : ""} /> {isResetting ? "Resetting..." : "Reset All"}</button></div></div><div className="overflow-x-auto"><table className="w-full min-w-[680px] text-left"><thead><tr className="border-b border-border text-[10px] uppercase tracking-wider text-muted-foreground"><th className="px-4 py-3 font-medium">No.</th><th className="px-2 py-3 font-medium">Student</th><th className="px-2 py-3 font-medium">Class</th><th className="px-2 py-3 font-medium">School</th><th className="px-4 py-3 text-right font-medium">Status</th><th className="px-4 py-3 text-right font-medium">Action</th></tr></thead><tbody>{filteredStudents.length === 0 ? <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">No students found.</td></tr> : filteredStudents.map(({ id, name, className, school, status, initials }) => <tr key={id} className="table-row-hover border-b border-border/70 last:border-0"><td className="px-4 py-3 font-mono text-xs text-muted-foreground">{id}</td><td className="px-2 py-3"><div className="flex items-center gap-3"><div className="flex size-7 items-center justify-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground">{initials}</div><span className="text-sm">{name}</span></div></td><td className="px-2 py-3 font-mono text-xs text-muted-foreground">{className}</td><td className="px-2 py-3 text-xs text-muted-foreground">{school}</td><td className="px-4 py-3 text-right"><span className={`inline-flex rounded-full px-2 py-1 text-[11px] font-medium ${status === 'present' ? 'status-present' : 'status-absent'}`}>{status === 'present' ? 'Present' : 'Absent'}</span></td><td className="px-4 py-3 text-right"><button onClick={() => { if(window.confirm(`Are you sure you want to delete ${name}?`)) onDelete(id); }} className="p-1.5 text-muted-foreground hover:text-rose-500 rounded-md hover:bg-muted"><Trash2 size={14} /></button></td></tr>)}</tbody></table></div></section>
 }
 
 function SetupView() {
@@ -42,6 +62,137 @@ function SetupView() {
 
 export default function Page() {
   const [active, setActive] = useState('Overview')
+  const [studentList, setStudentList] = useState<Student[]>([])
+  const [isAuthChecking, setIsAuthChecking] = useState(true)
+  const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null)
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    let tokenFromUrl = urlParams.get('access_token');
+    
+    if (!tokenFromUrl && window.location.hash.includes('access_token=')) {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      tokenFromUrl = hashParams.get('access_token');
+    }
+
+    if (tokenFromUrl) {
+      localStorage.setItem('access_token', tokenFromUrl);
+      window.history.replaceState({}, document.title, window.location.pathname);
+      setIsAuthChecking(false);
+      return;
+    }
+
+    setIsAuthChecking(false); 
+  }, []);
+
+  const fetchStudents = async (signal?: AbortSignal) => {
+    try {
+      const response = await axios.get<{success: boolean, data: any[]}>(API_STUDENT_LIST, { signal })
+      if (response.data.success && Array.isArray(response.data.data)) {
+        const mappedData = response.data.data.map((item: any) => ({
+          id: item.student_code || item.id,
+          name: item.name || 'Unknown',
+          className: item.class_name || 'N/A',
+          school: item.school || 'N/A',
+          status: item.status || 'absent',
+          initials: item.name ? item.name.substring(0, 2).toUpperCase() : '??'
+        }));
+        setStudentList(mappedData)
+      }
+    } catch (error) {
+      if (!axios.isCancel(error)) console.error(error)
+    }
+  }
+
+  useEffect(() => {
+    if (isAuthChecking) return;
+
+    const abortController = new AbortController()
+    fetchStudents(abortController.signal)
+    
+    const pollingInterval = setInterval(() => fetchStudents(), 3000)
+    return () => { clearInterval(pollingInterval); abortController.abort() }
+  }, [isAuthChecking])
+
+  const handleReset = async () => {
+    try {
+      const res = await axios.post('/api/students/reset')
+      if (res.data.success) {
+        showToast("All attendance records reset to absent.", "success")
+        fetchStudents()
+      } else {
+        showToast("Failed to reset attendance.", "error")
+      }
+    } catch (error) {
+      showToast("Error connecting to server.", "error")
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await axios.delete(`/api/students/${id}`)
+      if (res.data.success) {
+        showToast("Student deleted successfully.", "success")
+        fetchStudents()
+      } else {
+        showToast("Failed to delete student.", "error")
+      }
+    } catch (error) {
+      showToast("Error connecting to server.", "error")
+    }
+  }
+
+  if (isAuthChecking) return <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">Authenticating...</div>
+
+  const totalStudents = studentList.length;
+  const presentToday = studentList.filter(s => s.status === 'present').length;
+  const absentToday = totalStudents - presentToday;
+  const presentRate = totalStudents > 0 ? ((presentToday / totalStudents) * 100).toFixed(1) : '0.0';
+  const absentRate = totalStudents > 0 ? ((absentToday / totalStudents) * 100).toFixed(1) : '0.0';
+
   const date = new Intl.DateTimeFormat('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())
-  return <main className="mesh-background min-h-screen"><Sidebar active={active} onChange={setActive} /><div className="ml-60 min-h-screen max-md:ml-0"><div className="mx-auto max-w-6xl px-8 py-8 max-md:px-4"><header className="mb-8 flex items-start justify-between gap-4"><div><p className="text-xs text-muted-foreground">{date}</p><h1 className="mt-2 text-2xl font-semibold tracking-tight">Good morning, Linh</h1><p className="mt-1 text-sm text-muted-foreground">Here&apos;s your attendance intelligence for today.</p></div><button type="button" className="focus-ring hidden items-center gap-2 rounded-md border border-border px-3 py-2 text-xs text-muted-foreground hover:bg-muted md:flex"><CalendarDays size={14} /> Today <ChevronDown size={13} /></button></header>{active === 'Overview' ? <><div className="mb-5 grid gap-3 sm:grid-cols-3"><Metric label="Total students" value="45" detail="Across 3 classes" icon={Users} accent="cyan" /><Metric label="Present today" value="40" detail="88.9% attendance rate" icon={Check} accent="violet" /><Metric label="Absent today" value="05" detail="11.1% of total" icon={X} accent="rose" /></div><AttendanceChart /><AttendanceTable /></> : <SetupView />}</div></div></main>
+  
+  return (
+    <main className="mesh-background min-h-screen relative">
+      <Sidebar active={active} onChange={setActive} />
+      <div className="ml-60 min-h-screen max-md:ml-0">
+        <div className="mx-auto max-w-6xl px-8 py-8 max-md:px-4">
+          <header className="mb-8 flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">{date}</p>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight">Good morning, Linh</h1>
+              <p className="mt-1 text-sm text-muted-foreground">Here&apos;s your attendance intelligence for today.</p>
+            </div>
+            <button type="button" className="focus-ring hidden items-center gap-2 rounded-md border border-border px-3 py-2 text-xs text-muted-foreground hover:bg-muted md:flex">
+              <CalendarDays size={14} /> Today <ChevronDown size={13} />
+            </button>
+          </header>
+          {active === 'Overview' ? (
+            <>
+              <div className="mb-5 grid gap-3 sm:grid-cols-3">
+                <Metric label="Total students" value={totalStudents.toString()} detail={`Across the system`} icon={Users} accent="cyan" />
+                <Metric label="Present today" value={presentToday.toString()} detail={`${presentRate}% attendance rate`} icon={Check} accent="violet" />
+                <Metric label="Absent today" value={absentToday.toString()} detail={`${absentRate}% of total`} icon={X} accent="rose" />
+              </div>
+              <AttendanceChart />
+              <AttendanceTable studentList={studentList} onReset={handleReset} onDelete={handleDelete} />
+            </>
+          ) : <SetupView />}
+        </div>
+      </div>
+      
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg px-4 py-3 shadow-lg backdrop-blur-md border animate-in slide-in-from-bottom-5 fade-in duration-300 ${toast.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-rose-500/10 border-rose-500/20 text-rose-500'}`}>
+          {toast.type === 'success' ? <Check size={16} /> : <X size={16} />}
+          <p className="text-sm font-medium">{toast.message}</p>
+        </div>
+      )}
+    </main>
+  )
 }

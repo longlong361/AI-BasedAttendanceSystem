@@ -1,0 +1,6 @@
+opencv-python
+requests
+pillow
+deepface
+mediapipe
+torch
